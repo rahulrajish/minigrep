@@ -78,11 +78,12 @@ pub fn get_ignore_case(args: &[String], env_args: &str) -> bool {
         } 
     }
 
-    if env_args == "1" {
-        ignore_case = true;
-    } else if env_args == "0" {
-        ignore_case = false;
+    match env_args {
+        "0" => ignore_case = false,
+        "1" => ignore_case = true,
+         _ => (),
     }
+    
     ignore_case
 }
 
