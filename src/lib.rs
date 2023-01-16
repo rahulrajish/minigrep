@@ -17,7 +17,11 @@ impl Config {
         let query = args[1].clone();
         let file_path = args[2].clone();
 
-        let ignore_case = env::var("IGNORE_CASE").is_ok();
+        let ignore_case_env = env::var("IGNORE_CASE").or_else(|_| 
+            Ok(String::from("Ok"))
+        )?;
+
+        let ignore_case = get_ignore_case(&args, &ignore_case_env);
 
         Ok(Config { query, file_path, ignore_case })
     }
@@ -65,6 +69,23 @@ pub fn search_case_insensitive<'a> (query: &str, contents:&'a str) -> Vec<&'a st
     results
 }
 
+pub fn get_ignore_case(args: &[String], env_args: &str) -> bool {
+    let mut ignore_case = false;
+    if args.len() > 3 {
+        let ignore_case_args = args[3].clone();
+        if ignore_case_args == "Ignore_Case" {
+            ignore_case = true;
+        } 
+    }
+
+    if env_args == "1" {
+        ignore_case = true;
+    } else if env_args == "0" {
+        ignore_case = false;
+    }
+    ignore_case
+}
+
 #[cfg(test)]
 mod tests{
     use super::*;
@@ -91,5 +112,19 @@ Pick three.
 Trust me.";
 
         assert_eq!(vec!["Rust:","Trust me."], search_case_insensitive(query, contents));
+    }
+
+    #[test]
+    fn ignore_case_env_is_true() {
+        let ignore_case_cmd:Vec<String> = vec!["arg1".to_string(),"arg2".to_string(),"arg3".to_string(),"Ignore_Case".to_string()];
+        let ignore_case_env = "1";
+        assert_eq!(true, get_ignore_case(&ignore_case_cmd, ignore_case_env));
+    }
+
+    #[test]
+    fn ignore_case_env_is_false() {
+        let ignore_case_cmd:Vec<String> = vec!["arg1".to_string(),"arg2".to_string(),"arg3".to_string(),"Ignore_Case".to_string()];
+        let ignore_case_env = "0";
+        assert_eq!(false, get_ignore_case(&ignore_case_cmd, ignore_case_env));
     }
 }
