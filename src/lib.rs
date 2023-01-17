@@ -128,4 +128,11 @@ Trust me.";
         let ignore_case_env = "0";
         assert_eq!(false, get_ignore_case(&ignore_case_cmd, ignore_case_env));
     }
+
+    #[test]
+    fn ignore_case_cmd_is_true() {
+        let ignore_case_cmd:Vec<String> = vec!["arg1".to_string(),"arg2".to_string(),"arg3".to_string(),"Ignore_Case".to_string()];
+        let ignore_case_env = "Ok";
+        assert_eq!(true, get_ignore_case(&ignore_case_cmd, ignore_case_env));
+    }
 }
