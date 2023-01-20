@@ -9,19 +9,41 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn build(args: &[String]) -> Result<Config, &'static str> {
-        if args.len() < 3 {
-            return Err("not Enough Arguments");
-        }
+    pub fn build(mut args: impl Iterator<Item = String>,) -> Result<Config, &'static str> {
+        args.next();
 
-        let query = args[1].clone();
-        let file_path = args[2].clone();
+        let query = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a query string"),
+        };
+
+        let file_path = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a file_path"),
+        };
+
+        let mut ignore_case = false;
+
+        match args.next() {
+            Some(arg) => {
+                if arg == "Ignore_Case" {
+                    ignore_case = true;
+                } else {
+                    return Err("Invalid argument passed. Try using 'Ignore_Case' for case insensitive searches");
+                }
+            },
+            None => (),
+        }
 
         let ignore_case_env = env::var("IGNORE_CASE").or_else(|_| 
             Ok(String::from("Ok"))
         )?;
 
-        let ignore_case = get_ignore_case(&args, &ignore_case_env)?;
+        match ignore_case_env.as_ref() {
+            "0" => ignore_case = false,
+            "1" => ignore_case = true,
+             _ => (),
+        };
 
         Ok(Config { query, file_path, ignore_case })
     }
@@ -46,48 +68,18 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn search<'a>(query: &str, contents:&'a str) -> Vec<&'a str> {
-    let mut results = Vec::new();
-    
-    for line in contents.lines(){
-        if line.contains(query) {
-            results.push(line);
-        }
-    }
-
-    results
+    contents
+        .lines()
+        .filter(|line| line.contains(query))
+        .collect()
 }
 
 pub fn search_case_insensitive<'a> (query: &str, contents:&'a str) -> Vec<&'a str> {
-    let mut results = Vec::new();
     let query = query.to_lowercase();
-
-    for line in contents.lines() {
-        if line.to_lowercase().contains(&query){
-            results.push(line);
-        }
-    }
-    results
-}
-
-pub fn get_ignore_case(cmd_args: &[String], env_args: &str) -> Result<bool, &'static str> {
-    let mut ignore_case = false;
-
-    if cmd_args.len() > 3 {
-        let ignore_case_args = cmd_args[3].clone();
-        if ignore_case_args == "Ignore_Case" {
-            ignore_case = true;
-        } else {
-            return Err("Invalid argument passed. Try using 'Ignore_case' for case insensitive searches");
-        }
-    }
-
-    match env_args {
-        "0" => ignore_case = false,
-        "1" => ignore_case = true,
-         _ => (),
-    }
-
-    Ok(ignore_case)
+    contents
+        .lines()
+        .filter(|line| line.to_lowercase().contains(&query))
+        .collect()
 }
 
 #[cfg(test)]
@@ -116,33 +108,5 @@ Pick three.
 Trust me.";
 
         assert_eq!(vec!["Rust:","Trust me."], search_case_insensitive(query, contents));
-    }
-
-    #[test]
-    fn ignore_case_env_is_true() {
-        let ignore_case_cmd:Vec<String> = vec!["arg1".to_string(),"arg2".to_string(),"arg3".to_string(),"Ignore_Case".to_string()];
-        let ignore_case_env = "1";
-        assert_eq!(Ok(true), get_ignore_case(&ignore_case_cmd, ignore_case_env));
-    }
-
-    #[test]
-    fn ignore_case_env_is_false() {
-        let ignore_case_cmd:Vec<String> = vec!["arg1".to_string(),"arg2".to_string(),"arg3".to_string(),"Ignore_Case".to_string()];
-        let ignore_case_env = "0";
-        assert_eq!(Ok(false), get_ignore_case(&ignore_case_cmd, ignore_case_env));
-    }
-
-    #[test]
-    fn ignore_case_cmd_is_true_env_is_absent() {
-        let ignore_case_cmd:Vec<String> = vec!["arg1".to_string(),"arg2".to_string(),"arg3".to_string(),"Ignore_Case".to_string()];
-        let ignore_case_env = "Ok";
-        assert_eq!(Ok(true), get_ignore_case(&ignore_case_cmd, ignore_case_env));
-    }
-
-    #[test]
-    fn ignore_case_cmd_invalid_value() {
-        let ignore_case_cmd:Vec<String> = vec!["arg1".to_string(),"arg2".to_string(),"arg3".to_string(),"Ignore_case".to_string()];
-        let ignore_case_env = "Ok";
-        assert_eq!(Err("Invalid argument passed. Try using 'Ignore_case' for case insensitive searches"), get_ignore_case(&ignore_case_cmd, ignore_case_env));
     }
 }
